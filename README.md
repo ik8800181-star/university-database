@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 <div align="center">
 
 <img src="https://capsule-render.vercel.app/api?type=waving&height=260&color=0:2563eb,50:7c3aed,100:9333ea&text=University%20Database%20Management%20System&fontColor=ffffff&fontSize=42&fontAlignY=38&desc=Full-Stack%20Academic%20Information%20Platform&descAlignY=58&animation=fadeIn" width="100%" />
@@ -543,3 +544,7 @@ This project is developed strictly for academic and educational purposes.
 
 </div>
 ```
+=======
+# university-database
+🎓 Full-stack University Database Management System — MySQL + Node.js/Express REST API + Vanilla JS frontend with stored procedures, triggers, and views.
+>>>>>>> 5b5a280825eb8d0ad10224cd425c02605165e4bd
