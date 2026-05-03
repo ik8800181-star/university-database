@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UDBMS — Students</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav>
+    <a href="index.html" class="nav-brand">🎓 <span>UDBMS</span></a>
+    <ul class="nav-links">
+        <li><a href="index.html">Dashboard</a></li>
+        <li><a href="students.html" class="active">Students</a></li>
+        <li><a href="courses.html">Courses</a></li>
+        <li><a href="transcript.html">Transcript</a></li>
+    </ul>
+</nav>
+
+<div class="container">
+    <div class="page-header">
+        <h1>Students</h1>
+        <p>All enrolled students sorted by GPA</p>
+    </div>
+
+    <!-- Enroll Form -->
+    <div class="form-section">
+        <h2>Enroll a Student into a Section</h2>
+        <div id="enroll-alert" class="alert"></div>
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Student ID</label>
+                <input type="text" id="enroll-student" placeholder="e.g. 24P-0001">
+            </div>
+            <div class="form-group">
+                <label>Section ID</label>
+                <input type="text" id="enroll-section" placeholder="e.g. SEC005">
+            </div>
+            <div class="form-group">
+                <label>Enrollment Date</label>
+                <input type="date" id="enroll-date" value="2024-09-01">
+            </div>
+        </div>
+        <button class="btn btn-primary" onclick="enrollStudent()">+ Enroll Student</button>
+    </div>
+
+    <!-- Update Grade Form -->
+    <div class="form-section">
+        <h2>Update Student Grade</h2>
+        <div id="grade-alert" class="alert"></div>
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Student ID</label>
+                <input type="text" id="grade-student" placeholder="e.g. 24P-0001">
+            </div>
+            <div class="form-group">
+                <label>Section ID</label>
+                <input type="text" id="grade-section" placeholder="e.g. SEC001">
+            </div>
+            <div class="form-group">
+                <label>New Grade</label>
+                <select id="grade-value">
+                    <option value="">Select grade</option>
+                    <option>A</option><option>A-</option>
+                    <option>B+</option><option>B</option><option>B-</option>
+                    <option>C+</option><option>C</option><option>C-</option>
+                    <option>D+</option><option>D</option>
+                    <option>F</option><option>W</option><option>I</option>
+                </select>
+            </div>
+        </div>
+        <button class="btn btn-primary" onclick="updateGrade()">✓ Update Grade</button>
+    </div>
+
+    <!-- Students Table -->
+    <div class="table-wrapper">
+        <div class="table-header">
+            <h2>All Students</h2>
+            <input type="text" class="search-box" placeholder="Search students..." oninput="filterTable(this.value)">
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Student ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Department</th>
+                    <th>GPA</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="students-tbody">
+                <tr><td colspan="6"><div class="loading"><div class="loading-spinner"></div>Loading students...</div></td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+const API = 'http://localhost:3000/api';
+let allStudents = [];
+
+function gpaClass(g) {
+    if (g >= 3.5) return 'gpa-high';
+    if (g >= 2.5) return 'gpa-mid';
+    return 'gpa-low';
+}
+
+function deptBadge(name) {
+    if (!name) return 'badge-blue';
+    if (name.includes('Computer'))   return 'badge-blue';
+    if (name.includes('Electrical')) return 'badge-cyan';
+    if (name.includes('Mechanical')) return 'badge-amber';
+    if (name.includes('Business'))   return 'badge-green';
+    if (name.includes('Math'))       return 'badge-purple';
+    return 'badge-blue';
+}
+
+function renderTable(data) {
+    if (!data.length) {
+        document.getElementById('students-tbody').innerHTML =
+            `<tr><td colspan="6"><div class="empty"><span class="empty-icon">🔍</span>No students found.</div></td></tr>`;
+        return;
+    }
+    document.getElementById('students-tbody').innerHTML = data.map(s => `
+        <tr>
+            <td><code style="color:var(--accent2);font-size:0.8rem">${s.student_id}</code></td>
+            <td><div style="font-weight:500">${s.name}</div></td>
+            <td><span style="color:var(--text2);font-size:0.82rem">${s.email}</span></td>
+            <td><span class="badge ${deptBadge(s.dept_name)}">${s.dept_name || '—'}</span></td>
+            <td><span class="${gpaClass(s.gpa)}">${s.gpa}</span></td>
+            <td>
+                <a href="transcript.html?id=${s.student_id}" class="btn btn-ghost" style="padding:0.3rem 0.75rem;font-size:0.78rem">
+                    📄 Transcript
+                </a>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function filterTable(q) {
+    const filtered = allStudents.filter(s =>
+        s.name.toLowerCase().includes(q.toLowerCase()) ||
+        s.student_id.toLowerCase().includes(q.toLowerCase()) ||
+        (s.dept_name && s.dept_name.toLowerCase().includes(q.toLowerCase()))
+    );
+    renderTable(filtered);
+}
+
+async function loadStudents() {
+    try {
+        allStudents = await fetch(`${API}/students`).then(r => r.json());
+        renderTable(allStudents);
+    } catch(e) {
+        document.getElementById('students-tbody').innerHTML =
+            `<tr><td colspan="6" style="color:var(--danger);padding:2rem;text-align:center;">⚠️ Cannot connect to backend.</td></tr>`;
+    }
+}
+
+function showAlert(id, msg, type) {
+    const el = document.getElementById(id);
+    el.className = `alert alert-${type} show`;
+    el.textContent = msg;
+    setTimeout(() => { el.className = 'alert'; }, 4000);
+}
+
+async function enrollStudent() {
+    const student_id     = document.getElementById('enroll-student').value.trim();
+    const section_id     = document.getElementById('enroll-section').value.trim();
+    const enrollment_date = document.getElementById('enroll-date').value;
+
+    if (!student_id || !section_id || !enrollment_date)
+        return showAlert('enroll-alert', 'Please fill in all fields.', 'error');
+
+    try {
+        const res  = await fetch(`${API}/enroll`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ student_id, section_id, enrollment_date })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        showAlert('enroll-alert', '✅ ' + data.message, 'success');
+        loadStudents();
+    } catch(e) {
+        showAlert('enroll-alert', '❌ ' + e.message, 'error');
+    }
+}
+
+async function updateGrade() {
+    const student_id = document.getElementById('grade-student').value.trim();
+    const section_id = document.getElementById('grade-section').value.trim();
+    const grade      = document.getElementById('grade-value').value;
+
+    if (!student_id || !section_id || !grade)
+        return showAlert('grade-alert', 'Please fill in all fields.', 'error');
+
+    try {
+        const res  = await fetch(`${API}/grade`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ student_id, section_id, grade })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        showAlert('grade-alert', '✅ ' + data.message, 'success');
+        loadStudents();
+    } catch(e) {
+        showAlert('grade-alert', '❌ ' + e.message, 'error');
+    }
+}
+
+loadStudents();
+</script>
+</body>
+</html>

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UDBMS — Courses</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav>
+    <a href="index.html" class="nav-brand">🎓 <span>UDBMS</span></a>
+    <ul class="nav-links">
+        <li><a href="index.html">Dashboard</a></li>
+        <li><a href="students.html">Students</a></li>
+        <li><a href="courses.html" class="active">Courses</a></li>
+        <li><a href="transcript.html">Transcript</a></li>
+    </ul>
+</nav>
+
+<div class="container">
+    <div class="page-header">
+        <h1>Course Catalog</h1>
+        <p>All courses offered across departments</p>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+        <div class="stat-card">
+            <span class="stat-icon">📚</span>
+            <div class="stat-value" id="stat-total">—</div>
+            <div class="stat-label">Total Courses</div>
+        </div>
+        <div class="stat-card">
+            <span class="stat-icon">💻</span>
+            <div class="stat-value" id="stat-cs">—</div>
+            <div class="stat-label">CS Courses</div>
+        </div>
+        <div class="stat-card">
+            <span class="stat-icon">⚡</span>
+            <div class="stat-value" id="stat-ee">—</div>
+            <div class="stat-label">EE Courses</div>
+        </div>
+        <div class="stat-card">
+            <span class="stat-icon">🔢</span>
+            <div class="stat-value" id="stat-ma">—</div>
+            <div class="stat-label">Math Courses</div>
+        </div>
+    </div>
+
+    <!-- Schedule Section -->
+    <div class="table-wrapper" style="margin-bottom:1.5rem">
+        <div class="table-header">
+            <h2>Class Schedule</h2>
+            <input type="text" class="search-box" placeholder="Search schedule..." oninput="filterSchedule(this.value)">
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Section</th>
+                    <th>Course</th>
+                    <th>Instructor</th>
+                    <th>Day & Time</th>
+                    <th>Room</th>
+                    <th>Semester</th>
+                    <th>Capacity</th>
+                </tr>
+            </thead>
+            <tbody id="schedule-tbody">
+                <tr><td colspan="7"><div class="loading"><div class="loading-spinner"></div>Loading schedule...</div></td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Courses Table -->
+    <div class="table-wrapper">
+        <div class="table-header">
+            <h2>All Courses</h2>
+            <input type="text" class="search-box" placeholder="Search courses..." oninput="filterCourses(this.value)">
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Course ID</th>
+                    <th>Title</th>
+                    <th>Credits</th>
+                    <th>Department</th>
+                </tr>
+            </thead>
+            <tbody id="courses-tbody">
+                <tr><td colspan="4"><div class="loading"><div class="loading-spinner"></div>Loading courses...</div></td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+const API = 'http://localhost:3000/api';
+let allCourses = [];
+let allSchedule = [];
+
+function deptBadge(name) {
+    if (!name) return 'badge-blue';
+    if (name.includes('Computer'))   return 'badge-blue';
+    if (name.includes('Electrical')) return 'badge-cyan';
+    if (name.includes('Mechanical')) return 'badge-amber';
+    if (name.includes('Business'))   return 'badge-green';
+    if (name.includes('Math'))       return 'badge-purple';
+    return 'badge-blue';
+}
+
+function creditBadge(c) {
+    return c >= 3 ? 'badge-blue' : 'badge-amber';
+}
+
+function dayBadge(d) {
+    const m = { Monday:'badge-blue', Tuesday:'badge-cyan', Wednesday:'badge-purple', Thursday:'badge-green', Friday:'badge-amber', Saturday:'badge-red' };
+    return m[d] || 'badge-blue';
+}
+
+function renderCourses(data) {
+    if (!data.length) {
+        document.getElementById('courses-tbody').innerHTML =
+            `<tr><td colspan="4"><div class="empty"><span class="empty-icon">📭</span>No courses found.</div></td></tr>`;
+        return;
+    }
+    document.getElementById('courses-tbody').innerHTML = data.map(c => `
+        <tr>
+            <td><code style="color:var(--accent2);font-size:0.8rem">${c.course_id}</code></td>
+            <td><div style="font-weight:500">${c.course_title}</div></td>
+            <td><span class="badge ${creditBadge(c.credits)}">${c.credits} credits</span></td>
+            <td><span class="badge ${deptBadge(c.dept_name)}">${c.dept_name || '—'}</span></td>
+        </tr>
+    `).join('');
+}
+
+function renderSchedule(data) {
+    if (!data.length) {
+        document.getElementById('schedule-tbody').innerHTML =
+            `<tr><td colspan="7"><div class="empty"><span class="empty-icon">🗓️</span>No schedule found.</div></td></tr>`;
+        return;
+    }
+    document.getElementById('schedule-tbody').innerHTML = data.map(s => `
+        <tr>
+            <td><code style="color:var(--accent2);font-size:0.8rem">${s.section_id}</code></td>
+            <td>
+                <div style="font-weight:500">${s.course_title}</div>
+                <div style="font-size:0.75rem;color:var(--text2)">${s.course_id}</div>
+            </td>
+            <td><span style="font-size:0.85rem">${s.instructor_name || '—'}</span></td>
+            <td>
+                <span class="badge ${dayBadge(s.day_of_week)}">${s.day_of_week || '—'}</span>
+                <div style="font-size:0.75rem;color:var(--text2);margin-top:0.2rem">
+                    ${s.start_time ? s.start_time.slice(0,5) : ''} – ${s.end_time ? s.end_time.slice(0,5) : ''}
+                </div>
+            </td>
+            <td><span style="color:var(--text2);font-size:0.85rem">${s.location || '—'}</span></td>
+            <td><span style="font-size:0.82rem">${s.semester_name} ${s.academic_year}</span></td>
+            <td><span style="color:var(--text2)">${s.capacity}</span></td>
+        </tr>
+    `).join('');
+}
+
+function filterCourses(q) {
+    renderCourses(allCourses.filter(c =>
+        c.course_title.toLowerCase().includes(q.toLowerCase()) ||
+        c.course_id.toLowerCase().includes(q.toLowerCase()) ||
+        (c.dept_name && c.dept_name.toLowerCase().includes(q.toLowerCase()))
+    ));
+}
+
+function filterSchedule(q) {
+    renderSchedule(allSchedule.filter(s =>
+        (s.course_title && s.course_title.toLowerCase().includes(q.toLowerCase())) ||
+        (s.instructor_name && s.instructor_name.toLowerCase().includes(q.toLowerCase())) ||
+        (s.day_of_week && s.day_of_week.toLowerCase().includes(q.toLowerCase())) ||
+        (s.location && s.location.toLowerCase().includes(q.toLowerCase()))
+    ));
+}
+
+async function loadAll() {
+    try {
+        const [courses, schedule] = await Promise.all([
+            fetch(`${API}/courses`).then(r => r.json()),
+            fetch(`${API}/schedule`).then(r => r.json()),
+        ]);
+
+        allCourses   = courses;
+        allSchedule  = schedule;
+
+        renderCourses(courses);
+        renderSchedule(schedule);
+
+        document.getElementById('stat-total').textContent = courses.length;
+        document.getElementById('stat-cs').textContent    = courses.filter(c => c.dept_name && c.dept_name.includes('Computer')).length;
+        document.getElementById('stat-ee').textContent    = courses.filter(c => c.dept_name && c.dept_name.includes('Electrical')).length;
+        document.getElementById('stat-ma').textContent    = courses.filter(c => c.dept_name && c.dept_name.includes('Math')).length;
+
+    } catch(e) {
+        document.getElementById('courses-tbody').innerHTML =
+            `<tr><td colspan="4" style="color:var(--danger);padding:2rem;text-align:center;">⚠️ Cannot connect to backend.</td></tr>`;
+        document.getElementById('schedule-tbody').innerHTML =
+            `<tr><td colspan="7" style="color:var(--danger);padding:2rem;text-align:center;">⚠️ Cannot connect to backend.</td></tr>`;
+    }
+}
+
+loadAll();
+</script>
+</body>
+</html>

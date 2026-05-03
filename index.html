@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UDBMS — Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav>
+    <a href="index.html" class="nav-brand">🎓 <span>UDBMS</span></a>
+    <ul class="nav-links">
+        <li><a href="index.html" class="active">Dashboard</a></li>
+        <li><a href="students.html">Students</a></li>
+        <li><a href="courses.html">Courses</a></li>
+        <li><a href="transcript.html">Transcript</a></li>
+    </ul>
+</nav>
+
+<div class="container">
+    <div class="page-header">
+        <h1>Dashboard</h1>
+        <p>University Database Management System — Group 13</p>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <span class="stat-icon">🎓</span>
+            <div class="stat-value" id="stat-students">—</div>
+            <div class="stat-label">Total Students</div>
+        </div>
+        <div class="stat-card">
+            <span class="stat-icon">📚</span>
+            <div class="stat-value" id="stat-courses">—</div>
+            <div class="stat-label">Total Courses</div>
+        </div>
+        <div class="stat-card">
+            <span class="stat-icon">🏛️</span>
+            <div class="stat-value" id="stat-depts">—</div>
+            <div class="stat-label">Departments</div>
+        </div>
+        <div class="stat-card">
+            <span class="stat-icon">📋</span>
+            <div class="stat-value" id="stat-enrollments">—</div>
+            <div class="stat-label">Enrollments</div>
+        </div>
+    </div>
+
+    <!-- Dashboard Grid -->
+    <div class="dashboard-grid">
+
+        <!-- Recent Students Table -->
+        <div class="table-wrapper">
+            <div class="table-header">
+                <h2>Top Students by GPA</h2>
+                <a href="students.html" class="btn btn-ghost">View all →</a>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Student</th>
+                        <th>Department</th>
+                        <th>GPA</th>
+                    </tr>
+                </thead>
+                <tbody id="top-students">
+                    <tr><td colspan="3"><div class="loading"><div class="loading-spinner"></div>Loading...</div></td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Quick Links -->
+        <div>
+            <div class="card" style="margin-bottom:1.25rem;">
+                <div style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:1rem;">Quick Navigation</div>
+                <div class="quick-links">
+                    <a href="students.html" class="quick-link">
+                        <span class="quick-link-icon">👨‍🎓</span>
+                        <div class="quick-link-text">
+                            <strong>Students</strong>
+                            <span>View and manage all students</span>
+                        </div>
+                    </a>
+                    <a href="courses.html" class="quick-link">
+                        <span class="quick-link-icon">📖</span>
+                        <div class="quick-link-text">
+                            <strong>Courses</strong>
+                            <span>Browse course catalog</span>
+                        </div>
+                    </a>
+                    <a href="transcript.html" class="quick-link">
+                        <span class="quick-link-icon">📄</span>
+                        <div class="quick-link-text">
+                            <strong>Transcript</strong>
+                            <span>View student academic record</span>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Dept breakdown -->
+            <div class="card">
+                <div style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:1rem;">Departments</div>
+                <div id="dept-list">
+                    <div class="loading"><div class="loading-spinner"></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const API = 'http://localhost:3000/api';
+
+function gpaClass(g) {
+    if (g >= 3.5) return 'gpa-high';
+    if (g >= 2.5) return 'gpa-mid';
+    return 'gpa-low';
+}
+
+function deptBadge(d) {
+    const map = { CS001:'badge-blue', EE001:'badge-cyan', ME001:'badge-amber', BA001:'badge-green', MA001:'badge-purple' };
+    return map[d] || 'badge-blue';
+}
+
+async function loadStats() {
+    try {
+        const [students, courses, depts, enrollments] = await Promise.all([
+            fetch(`${API}/students`).then(r => r.json()),
+            fetch(`${API}/courses`).then(r => r.json()),
+            fetch(`${API}/departments`).then(r => r.json()),
+            fetch(`${API}/enrollments`).then(r => r.json()),
+        ]);
+
+        document.getElementById('stat-students').textContent    = students.length;
+        document.getElementById('stat-courses').textContent     = courses.length;
+        document.getElementById('stat-depts').textContent       = depts.length;
+        document.getElementById('stat-enrollments').textContent = enrollments.length;
+
+        // Top 5 students
+        const top = students.slice(0, 5);
+        document.getElementById('top-students').innerHTML = top.map(s => `
+            <tr>
+                <td>
+                    <div style="font-weight:500">${s.name}</div>
+                    <div style="font-size:0.78rem;color:var(--text2)">${s.student_id}</div>
+                </td>
+                <td><span class="badge ${deptBadge(s.dept_id)}">${s.dept_name || '—'}</span></td>
+                <td><span class="${gpaClass(s.gpa)}">${s.gpa}</span></td>
+            </tr>
+        `).join('');
+
+        // Dept list
+        document.getElementById('dept-list').innerHTML = depts.map(d => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:0.6rem 0;border-bottom:1px solid var(--border);">
+                <div>
+                    <div style="font-size:0.875rem;font-weight:500">${d.dept_name}</div>
+                    <div style="font-size:0.75rem;color:var(--text2)">${d.building}</div>
+                </div>
+                <div style="font-size:0.78rem;color:var(--text2)">PKR ${Number(d.budget).toLocaleString()}</div>
+            </div>
+        `).join('');
+
+    } catch(e) {
+        document.getElementById('top-students').innerHTML =
+            `<tr><td colspan="3" style="color:var(--danger);padding:2rem;text-align:center;">⚠️ Cannot connect to backend. Make sure <code>node server.js</code> is running.</td></tr>`;
+    }
+}
+
+loadStats();
+</script>
+</body>
+</html>
